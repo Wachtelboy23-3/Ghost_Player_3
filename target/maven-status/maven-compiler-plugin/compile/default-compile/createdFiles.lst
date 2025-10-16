@@ -1,5 +1,6 @@
 de/ghostplayers/ChatFilterListener.class
+de/ghostplayers/DiscordSRVListener.class
+de/ghostplayers/PlayerVisibilityListener.class
 de/ghostplayers/GhostCommand.class
 de/ghostplayers/GhostPlayersPlugin.class
-de/ghostplayers/PlayerVisibilityListener.class
 de/ghostplayers/TabCompleteListener.class

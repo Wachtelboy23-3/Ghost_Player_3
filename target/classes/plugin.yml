@@ -8,7 +8,7 @@ description: Hide players completely from other players
 commands:
   ghost:
     description: Manage hidden players
-    usage: /<command> <add|remove|list|visible> [player] [viewer]
+    usage: /<command> <add|remove|list|visible|allow|disallow> [player] [viewer]
     permission: ghostplayers.admin
     aliases: [gp, hideplayer]
 
@@ -16,3 +16,6 @@ permissions:
   ghostplayers.admin:
     description: Allows managing hidden players
     default: op
+  ghostplayers.seehidden:
+    description: Allows seeing all hidden players
+    default: false
