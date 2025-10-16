@@ -48,6 +48,12 @@ public class GhostCommand implements CommandExecutor, TabCompleter {
             case "visible":
                 handleVisible(sender, args);
                 break;
+            case "allow":
+                handleAllow(sender, args);
+                break;
+            case "disallow":
+                handleDisallow(sender, args);
+                break;
             default:
                 sendHelp(sender);
                 break;
@@ -67,14 +73,18 @@ public class GhostCommand implements CommandExecutor, TabCompleter {
         UUID targetUUID = targetPlayer.getUniqueId();
 
         if (args.length == 2) {
-            for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-                plugin.hidePlayer(targetUUID, onlinePlayer.getUniqueId());
-                if (onlinePlayer.getUniqueId().equals(targetUUID)) continue;
-                if (targetPlayer.isOnline()) {
-                    onlinePlayer.hidePlayer(plugin, (Player) targetPlayer);
+            plugin.hidePlayerFromAll(targetUUID);
+
+            if (targetPlayer.isOnline()) {
+                Player target = (Player) targetPlayer;
+                for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+                    if (onlinePlayer.getUniqueId().equals(targetUUID)) continue;
+                    if (!plugin.isHiddenFrom(targetUUID, onlinePlayer.getUniqueId())) continue;
+                    onlinePlayer.hidePlayer(plugin, target);
                 }
             }
-            sender.sendMessage(Component.text("Player " + args[1] + " is now hidden from everyone!")
+
+            sender.sendMessage(Component.text("Player " + args[1] + " is now hidden from everyone (including future joins)!")
                     .color(NamedTextColor.GREEN));
         } else {
             OfflinePlayer viewerPlayer = Bukkit.getOfflinePlayer(args[2]);
@@ -131,8 +141,10 @@ public class GhostCommand implements CommandExecutor, TabCompleter {
 
     private void handleList(CommandSender sender) {
         Map<UUID, Set<UUID>> hiddenPlayers = plugin.getHiddenPlayersMap();
+        Set<UUID> hiddenFromAll = plugin.getHiddenFromAll();
+        Set<UUID> canSeeHidden = plugin.getCanSeeHidden();
 
-        if (hiddenPlayers.isEmpty()) {
+        if (hiddenPlayers.isEmpty() && hiddenFromAll.isEmpty() && canSeeHidden.isEmpty()) {
             sender.sendMessage(Component.text("No players are currently hidden.")
                     .color(NamedTextColor.YELLOW));
             return;
@@ -141,22 +153,45 @@ public class GhostCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text("=== Hidden Players ===")
                 .color(NamedTextColor.GOLD));
 
-        for (Map.Entry<UUID, Set<UUID>> entry : hiddenPlayers.entrySet()) {
-            OfflinePlayer hiddenPlayer = Bukkit.getOfflinePlayer(entry.getKey());
-            String hiddenName = hiddenPlayer.getName() != null ? hiddenPlayer.getName() : "Unknown";
-
-            if (entry.getValue().isEmpty()) {
-                sender.sendMessage(Component.text("- " + hiddenName + ": hidden from no one")
+        if (!hiddenFromAll.isEmpty()) {
+            sender.sendMessage(Component.text("Hidden from ALL:")
+                    .color(NamedTextColor.AQUA));
+            for (UUID hiddenUUID : hiddenFromAll) {
+                OfflinePlayer hiddenPlayer = Bukkit.getOfflinePlayer(hiddenUUID);
+                String hiddenName = hiddenPlayer.getName() != null ? hiddenPlayer.getName() : "Unknown";
+                sender.sendMessage(Component.text("  - " + hiddenName)
                         .color(NamedTextColor.GRAY));
-            } else {
-                StringBuilder viewers = new StringBuilder();
-                for (UUID viewerUUID : entry.getValue()) {
-                    OfflinePlayer viewer = Bukkit.getOfflinePlayer(viewerUUID);
-                    String viewerName = viewer.getName() != null ? viewer.getName() : "Unknown";
-                    if (viewers.length() > 0) viewers.append(", ");
-                    viewers.append(viewerName);
+            }
+        }
+
+        if (!hiddenPlayers.isEmpty()) {
+            sender.sendMessage(Component.text("Hidden from specific players:")
+                    .color(NamedTextColor.AQUA));
+            for (Map.Entry<UUID, Set<UUID>> entry : hiddenPlayers.entrySet()) {
+                OfflinePlayer hiddenPlayer = Bukkit.getOfflinePlayer(entry.getKey());
+                String hiddenName = hiddenPlayer.getName() != null ? hiddenPlayer.getName() : "Unknown";
+
+                if (!entry.getValue().isEmpty()) {
+                    StringBuilder viewers = new StringBuilder();
+                    for (UUID viewerUUID : entry.getValue()) {
+                        OfflinePlayer viewer = Bukkit.getOfflinePlayer(viewerUUID);
+                        String viewerName = viewer.getName() != null ? viewer.getName() : "Unknown";
+                        if (viewers.length() > 0) viewers.append(", ");
+                        viewers.append(viewerName);
+                    }
+                    sender.sendMessage(Component.text("  - " + hiddenName + ": hidden from " + viewers)
+                            .color(NamedTextColor.GRAY));
                 }
-                sender.sendMessage(Component.text("- " + hiddenName + ": hidden from " + viewers)
+            }
+        }
+
+        if (!canSeeHidden.isEmpty()) {
+            sender.sendMessage(Component.text("Players who can see hidden:")
+                    .color(NamedTextColor.AQUA));
+            for (UUID viewerUUID : canSeeHidden) {
+                OfflinePlayer viewer = Bukkit.getOfflinePlayer(viewerUUID);
+                String viewerName = viewer.getName() != null ? viewer.getName() : "Unknown";
+                sender.sendMessage(Component.text("  - " + viewerName)
                         .color(NamedTextColor.GRAY));
             }
         }
@@ -172,10 +207,16 @@ public class GhostCommand implements CommandExecutor, TabCompleter {
         OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(args[1]);
         UUID targetUUID = targetPlayer.getUniqueId();
 
+        if (plugin.getHiddenFromAll().contains(targetUUID)) {
+            sender.sendMessage(Component.text("Player " + args[1] + " is hidden from EVERYONE")
+                    .color(NamedTextColor.AQUA));
+            return;
+        }
+
         Set<UUID> visibleTo = plugin.getVisibleTo(targetUUID);
 
         if (visibleTo.isEmpty()) {
-            sender.sendMessage(Component.text("Player " + args[1] + " is not hidden from anyone or not found in configuration.")
+            sender.sendMessage(Component.text("Player " + args[1] + " is not hidden from anyone.")
                     .color(NamedTextColor.YELLOW));
             return;
         }
@@ -192,10 +233,61 @@ public class GhostCommand implements CommandExecutor, TabCompleter {
                 .color(NamedTextColor.AQUA));
     }
 
+    private void handleAllow(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(Component.text("Usage: /ghost allow <player>")
+                    .color(NamedTextColor.RED));
+            return;
+        }
+
+        OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(args[1]);
+        UUID targetUUID = targetPlayer.getUniqueId();
+
+        plugin.addCanSeeHidden(targetUUID);
+
+        if (targetPlayer.isOnline()) {
+            Player target = (Player) targetPlayer;
+            for (Player hiddenPlayer : Bukkit.getOnlinePlayers()) {
+                if (plugin.getAllHiddenPlayers().contains(hiddenPlayer.getUniqueId()) ||
+                    plugin.getHiddenFromAll().contains(hiddenPlayer.getUniqueId())) {
+                    target.showPlayer(plugin, hiddenPlayer);
+                }
+            }
+        }
+
+        sender.sendMessage(Component.text("Player " + args[1] + " can now see all hidden players!")
+                .color(NamedTextColor.GREEN));
+    }
+
+    private void handleDisallow(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(Component.text("Usage: /ghost disallow <player>")
+                    .color(NamedTextColor.RED));
+            return;
+        }
+
+        OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(args[1]);
+        UUID targetUUID = targetPlayer.getUniqueId();
+
+        plugin.removeCanSeeHidden(targetUUID);
+
+        if (targetPlayer.isOnline()) {
+            Player target = (Player) targetPlayer;
+            for (Player hiddenPlayer : Bukkit.getOnlinePlayers()) {
+                if (plugin.isHiddenFrom(hiddenPlayer.getUniqueId(), targetUUID)) {
+                    target.hidePlayer(plugin, hiddenPlayer);
+                }
+            }
+        }
+
+        sender.sendMessage(Component.text("Player " + args[1] + " can no longer see hidden players!")
+                .color(NamedTextColor.GREEN));
+    }
+
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(Component.text("=== GhostPlayers Commands ===")
                 .color(NamedTextColor.GOLD));
-        sender.sendMessage(Component.text("/ghost add <player> - Hide player from everyone")
+        sender.sendMessage(Component.text("/ghost add <player> - Hide player from everyone (including future joins)")
                 .color(NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/ghost add <player> <viewer> - Hide player from specific viewer")
                 .color(NamedTextColor.GRAY));
@@ -207,6 +299,10 @@ public class GhostCommand implements CommandExecutor, TabCompleter {
                 .color(NamedTextColor.GRAY));
         sender.sendMessage(Component.text("/ghost visible <player> - Check who can't see a player")
                 .color(NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("/ghost allow <player> - Allow player to see all hidden players")
+                .color(NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("/ghost disallow <player> - Disallow player from seeing hidden players")
+                .color(NamedTextColor.GRAY));
     }
 
     @Override
@@ -216,12 +312,14 @@ public class GhostCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            return Arrays.asList("add", "remove", "list", "visible");
+            return Arrays.asList("add", "remove", "list", "visible", "allow", "disallow");
         }
 
         if (args.length == 2 && (args[0].equalsIgnoreCase("add") ||
                                   args[0].equalsIgnoreCase("remove") ||
-                                  args[0].equalsIgnoreCase("visible"))) {
+                                  args[0].equalsIgnoreCase("visible") ||
+                                  args[0].equalsIgnoreCase("allow") ||
+                                  args[0].equalsIgnoreCase("disallow"))) {
             List<String> playerNames = new ArrayList<>();
             for (Player player : Bukkit.getOnlinePlayers()) {
                 playerNames.add(player.getName());

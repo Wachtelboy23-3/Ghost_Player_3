@@ -3,6 +3,7 @@ package de.ghostplayers;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -12,6 +13,8 @@ import java.util.*;
 public class GhostPlayersPlugin extends JavaPlugin {
 
     private final Map<UUID, Set<UUID>> hiddenPlayers = new HashMap<>();
+    private final Set<UUID> hiddenFromAll = new HashSet<>();
+    private final Set<UUID> canSeeHidden = new HashSet<>();
     private File dataFile;
     private FileConfiguration dataConfig;
 
@@ -51,18 +54,33 @@ public class GhostPlayersPlugin extends JavaPlugin {
 
     private void loadHiddenPlayers() {
         hiddenPlayers.clear();
-        if (!dataConfig.contains("hidden-players")) {
-            return;
+        hiddenFromAll.clear();
+        canSeeHidden.clear();
+
+        if (dataConfig.contains("hidden-players")) {
+            for (String hiddenUUID : dataConfig.getConfigurationSection("hidden-players").getKeys(false)) {
+                UUID hidden = UUID.fromString(hiddenUUID);
+                List<String> viewerList = dataConfig.getStringList("hidden-players." + hiddenUUID);
+                Set<UUID> viewers = new HashSet<>();
+                for (String viewerUUID : viewerList) {
+                    viewers.add(UUID.fromString(viewerUUID));
+                }
+                hiddenPlayers.put(hidden, viewers);
+            }
         }
 
-        for (String hiddenUUID : dataConfig.getConfigurationSection("hidden-players").getKeys(false)) {
-            UUID hidden = UUID.fromString(hiddenUUID);
-            List<String> viewerList = dataConfig.getStringList("hidden-players." + hiddenUUID);
-            Set<UUID> viewers = new HashSet<>();
-            for (String viewerUUID : viewerList) {
-                viewers.add(UUID.fromString(viewerUUID));
+        if (dataConfig.contains("hidden-from-all")) {
+            List<String> hiddenFromAllList = dataConfig.getStringList("hidden-from-all");
+            for (String hiddenUUID : hiddenFromAllList) {
+                hiddenFromAll.add(UUID.fromString(hiddenUUID));
             }
-            hiddenPlayers.put(hidden, viewers);
+        }
+
+        if (dataConfig.contains("can-see-hidden")) {
+            List<String> canSeeList = dataConfig.getStringList("can-see-hidden");
+            for (String viewerUUID : canSeeList) {
+                canSeeHidden.add(UUID.fromString(viewerUUID));
+            }
         }
 
         getLogger().info("Loaded " + hiddenPlayers.size() + " hidden player configurations");
@@ -70,6 +88,8 @@ public class GhostPlayersPlugin extends JavaPlugin {
 
     public void saveHiddenPlayers() {
         dataConfig.set("hidden-players", null);
+        dataConfig.set("hidden-from-all", null);
+        dataConfig.set("can-see-hidden", null);
 
         for (Map.Entry<UUID, Set<UUID>> entry : hiddenPlayers.entrySet()) {
             List<String> viewerList = new ArrayList<>();
@@ -78,6 +98,18 @@ public class GhostPlayersPlugin extends JavaPlugin {
             }
             dataConfig.set("hidden-players." + entry.getKey().toString(), viewerList);
         }
+
+        List<String> hiddenFromAllList = new ArrayList<>();
+        for (UUID hidden : hiddenFromAll) {
+            hiddenFromAllList.add(hidden.toString());
+        }
+        dataConfig.set("hidden-from-all", hiddenFromAllList);
+
+        List<String> canSeeList = new ArrayList<>();
+        for (UUID viewer : canSeeHidden) {
+            canSeeList.add(viewer.toString());
+        }
+        dataConfig.set("can-see-hidden", canSeeList);
 
         try {
             dataConfig.save(dataFile);
@@ -104,18 +136,28 @@ public class GhostPlayersPlugin extends JavaPlugin {
     }
 
     public void hidePlayerFromAll(UUID hidden) {
-        Set<UUID> allPlayers = new HashSet<>();
-        Bukkit.getOnlinePlayers().forEach(p -> allPlayers.add(p.getUniqueId()));
-        hiddenPlayers.put(hidden, allPlayers);
+        hiddenFromAll.add(hidden);
+        hiddenPlayers.remove(hidden);
         saveHiddenPlayers();
     }
 
     public void showPlayerToAll(UUID hidden) {
         hiddenPlayers.remove(hidden);
+        hiddenFromAll.remove(hidden);
         saveHiddenPlayers();
     }
 
     public boolean isHiddenFrom(UUID hidden, UUID viewer) {
+        if (canSeeHidden.contains(viewer)) {
+            return false;
+        }
+        Player viewerPlayer = Bukkit.getPlayer(viewer);
+        if (viewerPlayer != null && viewerPlayer.hasPermission("ghostplayers.seehidden")) {
+            return false;
+        }
+        if (hiddenFromAll.contains(hidden)) {
+            return true;
+        }
         Set<UUID> viewers = hiddenPlayers.get(hidden);
         return viewers != null && viewers.contains(viewer);
     }
@@ -130,5 +172,27 @@ public class GhostPlayersPlugin extends JavaPlugin {
 
     public Map<UUID, Set<UUID>> getHiddenPlayersMap() {
         return new HashMap<>(hiddenPlayers);
+    }
+
+    public Set<UUID> getHiddenFromAll() {
+        return new HashSet<>(hiddenFromAll);
+    }
+
+    public void addCanSeeHidden(UUID viewer) {
+        canSeeHidden.add(viewer);
+        saveHiddenPlayers();
+    }
+
+    public void removeCanSeeHidden(UUID viewer) {
+        canSeeHidden.remove(viewer);
+        saveHiddenPlayers();
+    }
+
+    public Set<UUID> getCanSeeHidden() {
+        return new HashSet<>(canSeeHidden);
+    }
+
+    public boolean canPlayerSeeHidden(UUID viewer) {
+        return canSeeHidden.contains(viewer);
     }
 }

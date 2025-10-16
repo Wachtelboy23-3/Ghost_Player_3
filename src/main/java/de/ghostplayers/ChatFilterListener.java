@@ -30,21 +30,14 @@ public class ChatFilterListener implements Listener {
         Player player = event.getPlayer();
         UUID playerUUID = player.getUniqueId();
 
-        if (plugin.getAllHiddenPlayers().contains(playerUUID)) {
-            Set<UUID> visibleTo = plugin.getVisibleTo(playerUUID);
+        if (plugin.getAllHiddenPlayers().contains(playerUUID) || plugin.getHiddenFromAll().contains(playerUUID)) {
+            Component originalMessage = event.joinMessage();
+            event.joinMessage(null);
 
-            if (visibleTo.isEmpty()) {
-                event.joinMessage(null);
-            } else {
-                Component originalMessage = event.joinMessage();
-                event.joinMessage(null);
-
-                if (originalMessage != null) {
-                    for (UUID viewerUUID : visibleTo) {
-                        Player viewer = Bukkit.getPlayer(viewerUUID);
-                        if (viewer != null && viewer.isOnline()) {
-                            viewer.sendMessage(originalMessage);
-                        }
+            if (originalMessage != null) {
+                for (Player viewer : Bukkit.getOnlinePlayers()) {
+                    if (!plugin.isHiddenFrom(playerUUID, viewer.getUniqueId())) {
+                        viewer.sendMessage(originalMessage);
                     }
                 }
             }
@@ -56,21 +49,14 @@ public class ChatFilterListener implements Listener {
         Player player = event.getPlayer();
         UUID playerUUID = player.getUniqueId();
 
-        if (plugin.getAllHiddenPlayers().contains(playerUUID)) {
-            Set<UUID> visibleTo = plugin.getVisibleTo(playerUUID);
+        if (plugin.getAllHiddenPlayers().contains(playerUUID) || plugin.getHiddenFromAll().contains(playerUUID)) {
+            Component originalMessage = event.quitMessage();
+            event.quitMessage(null);
 
-            if (visibleTo.isEmpty()) {
-                event.quitMessage(null);
-            } else {
-                Component originalMessage = event.quitMessage();
-                event.quitMessage(null);
-
-                if (originalMessage != null) {
-                    for (UUID viewerUUID : visibleTo) {
-                        Player viewer = Bukkit.getPlayer(viewerUUID);
-                        if (viewer != null && viewer.isOnline()) {
-                            viewer.sendMessage(originalMessage);
-                        }
+            if (originalMessage != null) {
+                for (Player viewer : Bukkit.getOnlinePlayers()) {
+                    if (!plugin.isHiddenFrom(playerUUID, viewer.getUniqueId())) {
+                        viewer.sendMessage(originalMessage);
                     }
                 }
             }
