@@ -36,7 +36,7 @@ public class ChatFilterListener implements Listener {
 
             if (originalMessage != null) {
                 for (Player viewer : Bukkit.getOnlinePlayers()) {
-                    if (!plugin.isHiddenFrom(playerUUID, viewer.getUniqueId())) {
+                    if (viewer.hasPermission("ghostplayers.seehidden") || plugin.canPlayerSeeHidden(viewer.getUniqueId())) {
                         viewer.sendMessage(originalMessage);
                     }
                 }
@@ -55,7 +55,7 @@ public class ChatFilterListener implements Listener {
 
             if (originalMessage != null) {
                 for (Player viewer : Bukkit.getOnlinePlayers()) {
-                    if (!plugin.isHiddenFrom(playerUUID, viewer.getUniqueId())) {
+                    if (viewer.hasPermission("ghostplayers.seehidden") || plugin.canPlayerSeeHidden(viewer.getUniqueId())) {
                         viewer.sendMessage(originalMessage);
                     }
                 }
@@ -68,21 +68,14 @@ public class ChatFilterListener implements Listener {
         Player player = event.getEntity();
         UUID playerUUID = player.getUniqueId();
 
-        if (plugin.getAllHiddenPlayers().contains(playerUUID)) {
-            Set<UUID> visibleTo = plugin.getVisibleTo(playerUUID);
+        if (plugin.getAllHiddenPlayers().contains(playerUUID) || plugin.getHiddenFromAll().contains(playerUUID)) {
+            Component originalMessage = event.deathMessage();
+            event.deathMessage(null);
 
-            if (visibleTo.isEmpty()) {
-                event.deathMessage(null);
-            } else {
-                Component originalMessage = event.deathMessage();
-                event.deathMessage(null);
-
-                if (originalMessage != null) {
-                    for (UUID viewerUUID : visibleTo) {
-                        Player viewer = Bukkit.getPlayer(viewerUUID);
-                        if (viewer != null && viewer.isOnline()) {
-                            viewer.sendMessage(originalMessage);
-                        }
+            if (originalMessage != null) {
+                for (Player viewer : Bukkit.getOnlinePlayers()) {
+                    if (viewer.hasPermission("ghostplayers.seehidden") || plugin.canPlayerSeeHidden(viewer.getUniqueId())) {
+                        viewer.sendMessage(originalMessage);
                     }
                 }
             }
@@ -94,8 +87,17 @@ public class ChatFilterListener implements Listener {
         Player player = event.getPlayer();
         UUID playerUUID = player.getUniqueId();
 
-        if (plugin.getAllHiddenPlayers().contains(playerUUID)) {
+        if (plugin.getAllHiddenPlayers().contains(playerUUID) || plugin.getHiddenFromAll().contains(playerUUID)) {
+            Component originalMessage = event.message();
             event.message(null);
+
+            if (originalMessage != null) {
+                for (Player viewer : Bukkit.getOnlinePlayers()) {
+                    if (viewer.hasPermission("ghostplayers.seehidden") || plugin.canPlayerSeeHidden(viewer.getUniqueId())) {
+                        viewer.sendMessage(originalMessage);
+                    }
+                }
+            }
         }
     }
 
@@ -104,15 +106,12 @@ public class ChatFilterListener implements Listener {
         Player sender = event.getPlayer();
         UUID senderUUID = sender.getUniqueId();
 
-        if (plugin.getAllHiddenPlayers().contains(senderUUID)) {
-            Set<UUID> visibleTo = plugin.getVisibleTo(senderUUID);
-
+        if (plugin.getAllHiddenPlayers().contains(senderUUID) || plugin.getHiddenFromAll().contains(senderUUID)) {
             event.viewers().clear();
             event.viewers().add(sender);
 
-            for (UUID viewerUUID : visibleTo) {
-                Player viewer = Bukkit.getPlayer(viewerUUID);
-                if (viewer != null && viewer.isOnline()) {
+            for (Player viewer : Bukkit.getOnlinePlayers()) {
+                if (viewer.hasPermission("ghostplayers.seehidden") || plugin.canPlayerSeeHidden(viewer.getUniqueId())) {
                     event.viewers().add(viewer);
                 }
             }

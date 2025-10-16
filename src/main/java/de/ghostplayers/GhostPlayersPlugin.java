@@ -25,6 +25,7 @@ public class GhostPlayersPlugin extends JavaPlugin {
 
         getCommand("ghost").setExecutor(new GhostCommand(this));
 
+        Bukkit.getPluginManager().registerEvents(new DiscordSRVListener(this), this);
         Bukkit.getPluginManager().registerEvents(new PlayerVisibilityListener(this), this);
         Bukkit.getPluginManager().registerEvents(new ChatFilterListener(this), this);
         Bukkit.getPluginManager().registerEvents(new TabCompleteListener(this), this);
