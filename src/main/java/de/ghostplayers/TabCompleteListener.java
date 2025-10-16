@@ -26,6 +26,7 @@ public class TabCompleteListener implements Listener {
 
         Player sender = (Player) event.getSender();
         UUID senderUUID = sender.getUniqueId();
+        boolean canSeeHidden = sender.hasPermission("ghostplayers.seehidden") || plugin.canPlayerSeeHidden(senderUUID);
 
         List<String> completions = new ArrayList<>(event.getCompletions());
         List<String> filteredCompletions = new ArrayList<>();
@@ -33,9 +34,21 @@ public class TabCompleteListener implements Listener {
         for (String completion : completions) {
             boolean shouldHide = false;
 
-            for (UUID hiddenUUID : plugin.getAllHiddenPlayers()) {
-                if (plugin.isHiddenFrom(hiddenUUID, senderUUID)) {
+            if (!canSeeHidden) {
+                for (UUID hiddenUUID : plugin.getAllHiddenPlayers()) {
                     Player hiddenPlayer = plugin.getServer().getPlayer(hiddenUUID);
+                    if (hiddenPlayer != null) {
+                        String hiddenName = hiddenPlayer.getName();
+                        if (completion.equalsIgnoreCase(hiddenName) ||
+                            completion.toLowerCase().startsWith(hiddenName.toLowerCase())) {
+                            shouldHide = true;
+                            break;
+                        }
+                    }
+                }
+
+                for (UUID hiddenFromAllUUID : plugin.getHiddenFromAll()) {
+                    Player hiddenPlayer = plugin.getServer().getPlayer(hiddenFromAllUUID);
                     if (hiddenPlayer != null) {
                         String hiddenName = hiddenPlayer.getName();
                         if (completion.equalsIgnoreCase(hiddenName) ||

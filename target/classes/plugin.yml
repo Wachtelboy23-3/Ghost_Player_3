@@ -4,6 +4,7 @@ main: de.ghostplayers.GhostPlayersPlugin
 api-version: '1.21'
 author: Server Admin
 description: Hide players completely from other players
+softdepend: [DiscordSRV]
 
 commands:
   ghost:

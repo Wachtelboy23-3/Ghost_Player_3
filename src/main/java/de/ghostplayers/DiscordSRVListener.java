@@ -1,11 +1,11 @@
 package de.ghostplayers;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -20,13 +20,17 @@ public class DiscordSRVListener implements Listener {
         this.plugin = plugin;
     }
 
+    private boolean isPlayerHidden(UUID playerUUID) {
+        return plugin.getAllHiddenPlayers().contains(playerUUID) || plugin.getHiddenFromAll().contains(playerUUID);
+    }
+
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void onPlayerJoinLowest(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         UUID playerUUID = player.getUniqueId();
 
-        if (plugin.getAllHiddenPlayers().contains(playerUUID) || plugin.getHiddenFromAll().contains(playerUUID)) {
-            event.joinMessage(null);
+        if (isPlayerHidden(playerUUID)) {
+            event.setJoinMessage(null);
         }
     }
 
@@ -35,8 +39,8 @@ public class DiscordSRVListener implements Listener {
         Player player = event.getPlayer();
         UUID playerUUID = player.getUniqueId();
 
-        if (plugin.getAllHiddenPlayers().contains(playerUUID) || plugin.getHiddenFromAll().contains(playerUUID)) {
-            event.quitMessage(null);
+        if (isPlayerHidden(playerUUID)) {
+            event.setQuitMessage(null);
         }
     }
 
@@ -45,8 +49,8 @@ public class DiscordSRVListener implements Listener {
         Player player = event.getEntity();
         UUID playerUUID = player.getUniqueId();
 
-        if (plugin.getAllHiddenPlayers().contains(playerUUID) || plugin.getHiddenFromAll().contains(playerUUID)) {
-            event.deathMessage(null);
+        if (isPlayerHidden(playerUUID)) {
+            event.setDeathMessage(null);
         }
     }
 
@@ -55,18 +59,8 @@ public class DiscordSRVListener implements Listener {
         Player player = event.getPlayer();
         UUID playerUUID = player.getUniqueId();
 
-        if (plugin.getAllHiddenPlayers().contains(playerUUID) || plugin.getHiddenFromAll().contains(playerUUID)) {
+        if (isPlayerHidden(playerUUID)) {
             event.message(null);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
-    public void onAsyncPlayerChatLowest(AsyncPlayerChatEvent event) {
-        Player sender = event.getPlayer();
-        UUID senderUUID = sender.getUniqueId();
-
-        if (plugin.getAllHiddenPlayers().contains(senderUUID) || plugin.getHiddenFromAll().contains(senderUUID)) {
-            event.setCancelled(true);
         }
     }
 }
