@@ -8,6 +8,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class PlayerVisibilityListener implements Listener {
@@ -24,7 +26,11 @@ public class PlayerVisibilityListener implements Listener {
         UUID joiningUUID = joiningPlayer.getUniqueId();
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+            List<Player> onlinePlayers = new ArrayList<>(Bukkit.getOnlinePlayers());
+
+            for (Player onlinePlayer : onlinePlayers) {
+                if (onlinePlayer == joiningPlayer) continue;
+
                 UUID onlineUUID = onlinePlayer.getUniqueId();
 
                 if (plugin.isHiddenFrom(joiningUUID, onlineUUID)) {
@@ -43,8 +49,10 @@ public class PlayerVisibilityListener implements Listener {
         Player quittingPlayer = event.getPlayer();
         UUID quittingUUID = quittingPlayer.getUniqueId();
 
-        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-            if (onlinePlayer.equals(quittingPlayer)) continue;
+        List<Player> onlinePlayers = new ArrayList<>(Bukkit.getOnlinePlayers());
+
+        for (Player onlinePlayer : onlinePlayers) {
+            if (onlinePlayer == quittingPlayer) continue;
 
             onlinePlayer.showPlayer(plugin, quittingPlayer);
         }

@@ -30,6 +30,7 @@ public class GhostPlayersPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new ChatFilterListener(this), this);
         Bukkit.getPluginManager().registerEvents(new TabCompleteListener(this), this);
         Bukkit.getPluginManager().registerEvents(new ServerListPingListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new CommandOutputFilterListener(this), this);
 
         getLogger().info("GhostPlayers Plugin enabled!");
     }

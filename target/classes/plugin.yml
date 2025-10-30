@@ -1,0 +1,22 @@
+name: GhostPlayers
+version: '1.0.0'
+main: de.ghostplayers.GhostPlayersPlugin
+api-version: '1.21'
+author: Server Admin
+description: Hide players completely from other players
+softdepend: [DiscordSRV]
+
+commands:
+  ghost:
+    description: Manage hidden players
+    usage: /<command> <add|remove|list|visible|allow|disallow> [player] [viewer]
+    permission: ghostplayers.admin
+    aliases: [gp, hideplayer]
+
+permissions:
+  ghostplayers.admin:
+    description: Allows managing hidden players
+    default: op
+  ghostplayers.seehidden:
+    description: Allows seeing all hidden players
+    default: false
