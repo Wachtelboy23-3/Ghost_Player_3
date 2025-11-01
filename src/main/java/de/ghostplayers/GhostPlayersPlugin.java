@@ -151,18 +151,21 @@ public class GhostPlayersPlugin extends JavaPlugin {
     }
 
     public boolean isHiddenFrom(UUID hidden, UUID viewer) {
-        if (canSeeHidden.contains(viewer)) {
-            return false;
-        }
-        Player viewerPlayer = Bukkit.getPlayer(viewer);
-        if (viewerPlayer != null && viewerPlayer.hasPermission("ghostplayers.seehidden")) {
-            return false;
-        }
         if (hiddenFromAll.contains(hidden)) {
             return true;
         }
+
         Set<UUID> viewers = hiddenPlayers.get(hidden);
-        return viewers != null && viewers.contains(viewer);
+        if (viewers == null || !viewers.contains(viewer)) {
+            return false;
+        }
+
+        if (canSeeHidden.contains(viewer)) {
+            return false;
+        }
+
+        Player viewerPlayer = Bukkit.getPlayer(viewer);
+        return !(viewerPlayer != null && viewerPlayer.hasPermission("ghostplayers.seehidden"));
     }
 
     public Set<UUID> getVisibleTo(UUID hidden) {

@@ -8,13 +8,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public class PlayerVisibilityListener implements Listener {
 
     private final GhostPlayersPlugin plugin;
+    private final Map<UUID, Set<UUID>> visibilityCache = new HashMap<>();
 
     public PlayerVisibilityListener(GhostPlayersPlugin plugin) {
         this.plugin = plugin;
@@ -26,6 +25,7 @@ public class PlayerVisibilityListener implements Listener {
         UUID joiningUUID = joiningPlayer.getUniqueId();
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Set<UUID> hiddenFromJoining = new HashSet<>();
             List<Player> onlinePlayers = new ArrayList<>(Bukkit.getOnlinePlayers());
 
             for (Player onlinePlayer : onlinePlayers) {
@@ -35,12 +35,19 @@ public class PlayerVisibilityListener implements Listener {
 
                 if (plugin.isHiddenFrom(joiningUUID, onlineUUID)) {
                     onlinePlayer.hidePlayer(plugin, joiningPlayer);
+                    hiddenFromJoining.add(onlineUUID);
+                } else {
+                    onlinePlayer.showPlayer(plugin, joiningPlayer);
                 }
 
                 if (plugin.isHiddenFrom(onlineUUID, joiningUUID)) {
                     joiningPlayer.hidePlayer(plugin, onlinePlayer);
+                } else {
+                    joiningPlayer.showPlayer(plugin, onlinePlayer);
                 }
             }
+
+            visibilityCache.put(joiningUUID, hiddenFromJoining);
         }, 1L);
     }
 
@@ -49,11 +56,11 @@ public class PlayerVisibilityListener implements Listener {
         Player quittingPlayer = event.getPlayer();
         UUID quittingUUID = quittingPlayer.getUniqueId();
 
-        List<Player> onlinePlayers = new ArrayList<>(Bukkit.getOnlinePlayers());
+        visibilityCache.remove(quittingUUID);
 
+        List<Player> onlinePlayers = new ArrayList<>(Bukkit.getOnlinePlayers());
         for (Player onlinePlayer : onlinePlayers) {
             if (onlinePlayer == quittingPlayer) continue;
-
             onlinePlayer.showPlayer(plugin, quittingPlayer);
         }
     }
