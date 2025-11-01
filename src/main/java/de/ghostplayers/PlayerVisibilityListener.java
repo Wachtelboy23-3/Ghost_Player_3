@@ -13,7 +13,6 @@ import java.util.*;
 public class PlayerVisibilityListener implements Listener {
 
     private final GhostPlayersPlugin plugin;
-    private final Map<UUID, Set<UUID>> visibilityCache = new HashMap<>();
 
     public PlayerVisibilityListener(GhostPlayersPlugin plugin) {
         this.plugin = plugin;
@@ -25,41 +24,47 @@ public class PlayerVisibilityListener implements Listener {
         UUID joiningUUID = joiningPlayer.getUniqueId();
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            Set<UUID> hiddenFromJoining = new HashSet<>();
-            List<Player> onlinePlayers = new ArrayList<>(Bukkit.getOnlinePlayers());
+            Set<UUID> hiddenFromAll = plugin.getHiddenFromAll();
+            Map<UUID, Set<UUID>> hiddenPlayers = plugin.getHiddenPlayersMap();
+            Set<UUID> canSeeHidden = plugin.getCanSeeHidden();
+            boolean joiningCanSeeHidden = canSeeHidden.contains(joiningUUID) ||
+                                         (joiningPlayer.hasPermission("ghostplayers.seehidden"));
 
-            for (Player onlinePlayer : onlinePlayers) {
+            for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
                 if (onlinePlayer == joiningPlayer) continue;
 
                 UUID onlineUUID = onlinePlayer.getUniqueId();
+                boolean onlineCanSeeHidden = canSeeHidden.contains(onlineUUID) ||
+                                           (onlinePlayer.hasPermission("ghostplayers.seehidden"));
 
-                if (plugin.isHiddenFrom(joiningUUID, onlineUUID)) {
+                if (hiddenFromAll.contains(joiningUUID)) {
                     onlinePlayer.hidePlayer(plugin, joiningPlayer);
-                    hiddenFromJoining.add(onlineUUID);
+                } else if (hiddenPlayers.containsKey(joiningUUID) &&
+                          hiddenPlayers.get(joiningUUID).contains(onlineUUID) &&
+                          !onlineCanSeeHidden) {
+                    onlinePlayer.hidePlayer(plugin, joiningPlayer);
                 } else {
                     onlinePlayer.showPlayer(plugin, joiningPlayer);
                 }
 
-                if (plugin.isHiddenFrom(onlineUUID, joiningUUID)) {
+                if (hiddenFromAll.contains(onlineUUID)) {
+                    joiningPlayer.hidePlayer(plugin, onlinePlayer);
+                } else if (hiddenPlayers.containsKey(onlineUUID) &&
+                          hiddenPlayers.get(onlineUUID).contains(joiningUUID) &&
+                          !joiningCanSeeHidden) {
                     joiningPlayer.hidePlayer(plugin, onlinePlayer);
                 } else {
                     joiningPlayer.showPlayer(plugin, onlinePlayer);
                 }
             }
-
-            visibilityCache.put(joiningUUID, hiddenFromJoining);
         }, 1L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player quittingPlayer = event.getPlayer();
-        UUID quittingUUID = quittingPlayer.getUniqueId();
 
-        visibilityCache.remove(quittingUUID);
-
-        List<Player> onlinePlayers = new ArrayList<>(Bukkit.getOnlinePlayers());
-        for (Player onlinePlayer : onlinePlayers) {
+        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
             if (onlinePlayer == quittingPlayer) continue;
             onlinePlayer.showPlayer(plugin, quittingPlayer);
         }
